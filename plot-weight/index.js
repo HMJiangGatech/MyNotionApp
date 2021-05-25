@@ -7,7 +7,6 @@ var cred = JSON.parse(fs.readFileSync('credential.json', 'utf8'));
 const googleCreds = require('./google-credential.json');
 
 // Initialize the sheet - doc ID is the long id in the sheets URL
-const doc = new GoogleSpreadsheet(cred['googleSheetId']);
 const notion = new Client({auth:cred['apiKey']}); 
 const databaseId = cred['databaseId'];
 const pageId = cred['pageId'];
@@ -55,7 +54,7 @@ async function getEntriesFromDatabase() {
     return allPages; 
 }; 
 
-async function syncNotion2GS() {
+async function syncNotion2GS(doc) {
     allPages = await getEntriesFromDatabase(); 
     var cleanedData = [];
     var allExercise = [];
@@ -79,24 +78,40 @@ async function syncNotion2GS() {
         return x
     })
     cleanedData.reverse()
-    console.log(allExercise);
+    // console.log(allExercise);
     // console.log(cleanedData[0].Date >= cleanedData[1].Date);
 
 
     // Write into GS
     const sheet = await doc.sheetsByIndex[0];
+    // console.log(sheet.title);
     await sheet.clear();
     await sheet.setHeaderRow(['Id', 'Date', 'Weight (KG)', '👟 Workout', '🍽 Fasting > 16h']);
     await sheet.addRows(cleanedData);
     
     const sheet2 = await doc.sheetsByIndex[1];
+    // console.log(sheet2.title);
     await sheet2.clear();
     await sheet2.setHeaderRow(['Exercise']);
     await sheet2.addRows(allExercise);
 }
 
-(async () => {
+// For aws lambda
+exports.handler = async (event) => {
+    const start_date = new Date();
+    const doc = new GoogleSpreadsheet(cred['googleSheetId']);
     await doc.useServiceAccountAuth(googleCreds);
     await doc.loadInfo();
-    await syncNotion2GS();
+    await syncNotion2GS(doc);
+    const end_date = new Date();
+    console.log(`Successful Sync! ${start_date} to ${end_date}`);
+    const response = {
+        statusCode: 200,
+        body: JSON.stringify(`Successful Sync! ${start_date} to ${end_date}`),
+    };
+    return response;
+};
+
+(async () => {
+    await exports.handler(null);
 })()
