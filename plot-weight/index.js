@@ -1,21 +1,20 @@
 require('dotenv').config();
 var fs = require('fs');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const {Client} = require("@notionhq/client");
 
 var cred = JSON.parse(fs.readFileSync('credential.json', 'utf8'));
 const googleCreds = require('./google-credential.json');
 
 // Initialize the sheet - doc ID is the long id in the sheets URL
+const {Client} = require("@notionhq/client");
 const notion = new Client({auth:cred['apiKey']}); 
 const databaseId = cred['databaseId'];
-const pageId = cred['pageId'];
 
 
 //Get a paginated list of Tasks currently in a the database. 
 async function getEntriesFromDatabase() {
 
-    var allPages = [] 
+    var allPages = [];
 
     async function getPages(cursor){
         let request_payload = "";
@@ -24,7 +23,7 @@ async function getEntriesFromDatabase() {
             request_payload = {
                 path:'databases/' + databaseId + '/query', 
                 method:'POST',
-            }
+            };
         } else {
             request_payload= {
                 path:'databases/' + databaseId + '/query', 
@@ -32,34 +31,35 @@ async function getEntriesFromDatabase() {
                 body:{
                     "start_cursor": cursor
                 }
-            }
+            };
         }
         //While there are more pages left in the query, get pages from the database. 
-        const current_pages = await notion.request(request_payload)
+        const current_pages = await notion.request(request_payload);
         
         for(const page of current_pages.results){
             if(page.properties.Status){ 
-                allPages.push(page)
+                allPages.push(page);
             } else {
-                allPages.push(page)
+                allPages.push(page);
             }
         }
         if(current_pages.has_more){
-            await getPages(current_pages.next_cursor)
+            await getPages(current_pages.next_cursor);
         }
         
     }
     await getPages();
     // console.log(allPages)
     return allPages; 
-}; 
+}
 
 async function syncNotion2GS(doc) {
-    allPages = await getEntriesFromDatabase(); 
+    var allPages = await getEntriesFromDatabase(); 
     var cleanedData = [];
     var allExercise = [];
+    var d = {};
     for(const page of allPages){
-        d = page.properties
+        d = page.properties;
         cleanedData.push({
             'Date': new Date(d['Date'].created_time),
             'Weight (KG)': d['Weight (KG)'].number,
@@ -68,17 +68,17 @@ async function syncNotion2GS(doc) {
             'Exercise': d['Exercise'].multi_select.map(x => x.name),
         });
         allExercise = allExercise.concat(d['Exercise'].multi_select.map(x => {
-            return {'Exercise': x.name}
-        }))
+            return {'Exercise': x.name};
+        }));
         // console.log(d)
     }
-    cleanedData.sort((a, b) => a.Date - b.Date)
+    cleanedData.sort((a, b) => a.Date - b.Date);
     cleanedData = cleanedData.map((x, i)  => {
-        x["Id"] = i
-        return x
-    })
-    cleanedData.reverse()
-    // console.log(allExercise);
+        x["Id"] = i;
+        return x;
+    });
+    cleanedData.reverse();
+    // console.log(cleanedData.map(x => x.Date));
     // console.log(cleanedData[0].Date >= cleanedData[1].Date);
 
 
@@ -111,7 +111,3 @@ exports.handler = async (event) => {
     };
     return response;
 };
-
-(async () => {
-    await exports.handler(null);
-})()
