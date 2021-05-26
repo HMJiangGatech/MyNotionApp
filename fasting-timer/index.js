@@ -87,10 +87,11 @@ async function clickClock() {
     
     if (allPages.length == 0){
         console.log("Empty")
-        createNew(allPages)
+        await createNew(allPages)
     }
     else {
         console.log("Non Empty")
+        // console.log(allPages.map(x => x.properties['Start Time'].date))
         allPages = allPages.map(x => {
             x.created_time = new Date(x.created_time);
             return x;
@@ -98,9 +99,9 @@ async function clickClock() {
         allPages.sort((a, b) => b.created_time - a.created_time);
         lastEntry = allPages[0]
         if (lastEntry.properties.hasOwnProperty("End Time"))
-            createNew(allPages);
+            await createNew(allPages);
         else
-            updateEndTime(lastEntry.id)
+            await updateEndTime(lastEntry.id);
     }
 }
 
